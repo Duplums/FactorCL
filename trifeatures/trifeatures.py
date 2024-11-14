@@ -35,7 +35,9 @@ class GaussianBlur(object):
 class TrifeaturesDataModule(LightningDataModule):
     """Data module for Trifeatures/BimodalTrifeatures dataset"""
 
-    def __init__(self, model: str,
+    def __init__(self,
+                 root: str,
+                 model: str,
                  batch_size: int = 32,
                  num_workers: int = 0,
                  **kwargs):
@@ -50,7 +52,6 @@ class TrifeaturesDataModule(LightningDataModule):
         self.model = model
         self.batch_size = batch_size
         self.num_workers = num_workers
-        root = "/fastdata/trifeatures_3combi"
 
         normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                          std=[0.229, 0.224, 0.225])

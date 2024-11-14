@@ -18,6 +18,7 @@ if __name__ == "__main__":
 
     # Add arguments
     parser.add_argument("--root", type=str, required=True)
+    parser.add_argument("--root_dataset", type=str, required=True)
     parser.add_argument("--run", type=int, required=True)
     parser.add_argument("--biased", type=str, required=True)
     parser.add_argument("--lr", type=float, required=True)
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     results = dict(acc1_share=None, acc1_unique1=None, acc1_unique2=None, acc1_synergy=None)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    data_module = TrifeaturesDataModule(model="FactorCL", batch_size=64, num_workers=16, biased=(args.biased == "true"))
+    data_module = TrifeaturesDataModule(args.root_dataset, model="FactorCL", batch_size=64, num_workers=16, biased=(args.biased == "true"))
     train_loader = data_module.train_dataloader()
     encoders = [AlexNetEncoder(512), AlexNetEncoder(512)]
     factorcl_ssl = FactorCLSSL(encoders=encoders, feat_dims=[512, 512], y_ohe_dim=3, lr=args.lr).cuda()
@@ -37,7 +38,7 @@ if __name__ == "__main__":
 
     tasks = ["share", "unique1", "unique2", "synergy"]
     for i, t in enumerate(tasks):
-        data_module_test = TrifeaturesDataModule(model="Sup", batch_size=64, num_workers=16, task=t, biased=False)
+        data_module_test = TrifeaturesDataModule(args.root_dataset, model="Sup", batch_size=64, num_workers=16, task=t, biased=False)
         eval_train_loader = data_module_test.train_dataloader()
         eval_test_loader = data_module_test.test_dataloader()
         train_embeds_x1 = np.concatenate(
