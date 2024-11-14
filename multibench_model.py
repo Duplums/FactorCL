@@ -1,3 +1,5 @@
+import torch.optim
+
 from critic_objectives import*
 
 from torchvision import transforms
@@ -363,8 +365,8 @@ class FactorCLSSL(nn.Module):
         x1_embed = self.backbones[0](x1)
         x2_embed = self.backbones[1](x2)
          
-        x1_reps = [self.linears_infonce_x1x2[0](x1_embed), 
-                   self.linears_club_x1x2[0](x1_embed), 
+        x1_reps = [self.linears_infonce_x1x2[0](x1_embed),
+                   self.linears_club_x1x2[0](x1_embed),
                    self.linears_infonce_x1y(x1_embed),
                    self.linears_infonce_x1x2_cond[0](x1_embed),
                    self.linears_club_x1x2_cond[0](x1_embed)]
@@ -375,8 +377,8 @@ class FactorCLSSL(nn.Module):
                    self.linears_infonce_x1x2_cond[1](x2_embed),
                    self.linears_club_x1x2_cond[1](x2_embed)]
         
-        return torch.cat(x1_reps, dim=1), torch.cat(x2_reps, dim=1)
-
+        return torch.cat([torch.cat(x1_reps, dim=1), torch.cat(x2_reps, dim=1)], dim=1)
+        #return torch.cat([x1_embed, x2_embed], dim=1)
 
     def get_optims(self):
         non_CLUB_params = [self.backbones.parameters(),
@@ -399,8 +401,6 @@ class FactorCLSSL(nn.Module):
         CLUB_optims = [optim.Adam(param, lr=self.lr) for param in CLUB_params]
 
         return non_CLUB_optims, CLUB_optims
-
-
 
 
 ########################
@@ -519,7 +519,62 @@ def train_ssl_mosi(model, train_loader, modalities=[0,2], num_epoch=50, num_club
 
     return 
 
+# Vision and touch
+def train_ssl_visionandtouch(model, train_loader, num_epoch=100, num_club_iter=1):
+    non_CLUB_optims, CLUB_optims = model.get_optims()
+    losses = []
 
+    for _iter in range(num_epoch):
+        for i_batch, data_batch in enumerate(train_loader):
+            x1_batch, x2_batch, x1_aug, x2_aug = data_batch
+            x1_batch, x2_batch, x1_aug, x2_aug = x1_batch.cuda(), x2_batch.cuda(), x1_aug.cuda(), x2_aug.cuda()
+
+            loss = model(x1_batch, x2_batch, x1_aug, x2_aug)
+            losses.append(loss.detach().cpu().numpy())
+
+            for optimizer in non_CLUB_optims:
+                optimizer.zero_grad()
+
+            loss.backward()
+
+            for optimizer in non_CLUB_optims:
+                optimizer.step()
+
+            for _ in range(num_club_iter):
+
+                learning_loss = model.learning_loss(x1_batch, x2_batch, x1_aug, x2_aug)
+
+                for optimizer in CLUB_optims:
+                    optimizer.zero_grad()
+
+                learning_loss.backward()
+
+                for optimizer in CLUB_optims:
+                    optimizer.step()
+
+            if i_batch % 100 == 0:
+                print('iter: ', _iter, ' i_batch: ', i_batch, ' loss: ', loss.item())
+
+
+def train_sup_visionandtouch(model, train_loader, embed_size, num_epoch=100, lr=1e-4):
+    """ Fine-tuning of FactorCL on Vision&Touch regression task using a simple linear head.
+    """
+    linear = nn.Linear(embed_size, 4).to("cuda")
+    optimizer = torch.optim.Adam(list(model.parameters()) + list(linear.parameters()), lr=lr)
+    loss = torch.nn.MSELoss()
+    for _iter in range(num_epoch):
+        for i_batch, data_batch in enumerate(train_loader):
+            x_batch, y = data_batch
+            y = y.float().cuda()
+            embedding = model.get_embedding(x_batch[0].cuda(), x_batch[1].cuda())
+            output = linear(embedding)
+            loss_ = loss(output, y)
+            optimizer.zero_grad()
+            loss_.backward()
+            optimizer.step()
+            if i_batch % 100 == 0:
+                print('iter: ', _iter, ' i_batch: ', i_batch, ' loss: ', loss_.item())
+    return
 
 # Sarcasm/Humor Training
 
