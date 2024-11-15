@@ -309,13 +309,6 @@ class FactorCLSSL(nn.Module):
                                                self.critic_hidden_dim, self.critic_layers, activation, temperature=temperature) 
         self.club_x1x2 = CLUBInfoNCECritic(self.feat_dims[0], self.feat_dims[1], self.critic_hidden_dim, self.critic_layers, activation, temperature=temperature)
 
-
-    def ohe(self, y):
-        N = y.shape[0]
-        y_ohe = torch.zeros((N, self.y_ohe_dim))
-        y_ohe[torch.arange(N).long(), y.T[0].long()] = 1
-        return y_ohe    
-                         
     def forward(self, x1, x2, x1_aug, x2_aug):         
         # Get embeddings
         x1_embed = self.backbones[0](x1)
@@ -575,6 +568,45 @@ def train_sup_visionandtouch(model, train_loader, embed_size, num_epoch=100, lr=
             if i_batch % 100 == 0:
                 print('iter: ', _iter, ' i_batch: ', i_batch, ' loss: ', loss_.item())
     return
+
+
+
+# Hateful Memes
+def train_ssl_hatefulmemes(model, train_loader, num_epoch=100, num_club_iter=1):
+    non_CLUB_optims, CLUB_optims = model.get_optims()
+    losses = []
+
+    for _iter in range(num_epoch):
+        for i_batch, data_batch in enumerate(train_loader):
+            x1_batch, x2_batch, x1_aug, x2_aug = data_batch
+            x1_batch, x2_batch, x1_aug, x2_aug = x1_batch.cuda(), x2_batch, x1_aug.cuda(), x2_aug
+
+            loss = model(x1_batch, x2_batch, x1_aug, x2_aug)
+            losses.append(loss.detach().cpu().numpy())
+
+            for optimizer in non_CLUB_optims:
+                optimizer.zero_grad()
+
+            loss.backward()
+
+            for optimizer in non_CLUB_optims:
+                optimizer.step()
+
+            for _ in range(num_club_iter):
+
+                learning_loss = model.learning_loss(x1_batch, x2_batch, x1_aug, x2_aug)
+
+                for optimizer in CLUB_optims:
+                    optimizer.zero_grad()
+
+                learning_loss.backward()
+
+                for optimizer in CLUB_optims:
+                    optimizer.step()
+
+            if i_batch % 100 == 0:
+                print('iter: ', _iter, ' i_batch: ', i_batch, ' loss: ', loss.item())
+
 
 # Sarcasm/Humor Training
 
