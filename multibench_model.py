@@ -357,7 +357,7 @@ class FactorCLSSL(nn.Module):
     def get_embedding(self, x1, x2):
         x1_embed = self.backbones[0](x1)
         x2_embed = self.backbones[1](x2)
-         
+
         x1_reps = [self.linears_infonce_x1x2[0](x1_embed),
                    self.linears_club_x1x2[0](x1_embed),
                    self.linears_infonce_x1y(x1_embed),
@@ -369,9 +369,8 @@ class FactorCLSSL(nn.Module):
                    self.linears_infonce_x2y(x2_embed),
                    self.linears_infonce_x1x2_cond[1](x2_embed),
                    self.linears_club_x1x2_cond[1](x2_embed)]
-        
+
         return torch.cat([torch.cat(x1_reps, dim=1), torch.cat(x2_reps, dim=1)], dim=1)
-        #return torch.cat([x1_embed, x2_embed], dim=1)
 
     def get_optims(self):
         non_CLUB_params = [self.backbones.parameters(),

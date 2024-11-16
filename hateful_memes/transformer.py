@@ -106,7 +106,8 @@ class LanguageEncoder(nn.Module):
                     return x
 
         features = self.model.tokenize(x) # automatically truncate too large sentences
-        features["input_ids"] = self.mask(features["input_ids"])
+        if self.training:
+            features["input_ids"] = self.mask(features["input_ids"])
         features = batch_to_device(features, self.model.device)
         if self.freeze:
             with torch.no_grad():
