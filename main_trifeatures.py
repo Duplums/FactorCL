@@ -33,10 +33,10 @@ if __name__ == "__main__":
     train_loader = data_module.train_dataloader()
     encoders = [AlexNetEncoder(512), AlexNetEncoder(512)]
     factorcl_ssl = FactorCLSSL(encoders=encoders, feat_dims=[512, 512], y_ohe_dim=3, lr=args.lr).cuda()
-    train_ssl_trifeatures(factorcl_ssl, train_loader, num_epoch=100, num_club_iter=1)
+    train_ssl_trifeatures(factorcl_ssl, train_loader, num_epoch=150, num_club_iter=1)
     factorcl_ssl.eval()
 
-    tasks = ["share", "unique1", "unique2", "synergy"]
+    tasks = ["synergy", "share", "unique1", "unique2"]
     for i, t in enumerate(tasks):
         data_module_test = TrifeaturesDataModule(args.root_dataset, model="Sup", batch_size=64, num_workers=16, task=t, biased=False)
         eval_train_loader = data_module_test.train_dataloader()
@@ -52,7 +52,7 @@ if __name__ == "__main__":
             y_test.extend(data[1].detach().cpu().numpy())
 
         # Train Logistic Classifier
-        clf = LogisticRegressionCV(Cs=5, max_iter=100, n_jobs=20).fit(X_train, y_train)
+        clf = LogisticRegressionCV(Cs=5, max_iter=200, n_jobs=20, scoring="balanced_accuracy").fit(X_train, y_train)
         C = len(set(y_test))
         score = MulticlassAccuracy(num_classes=C, average="macro")(torch.tensor(y_test), torch.from_numpy(clf.predict(X_test)))
         print(f"biased={args.biased}, run={args.run}, task={t}, score={score}")
