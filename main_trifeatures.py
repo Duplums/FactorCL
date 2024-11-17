@@ -10,7 +10,7 @@ from sklearn.metrics import accuracy_score
 from trifeatures.alexnet import AlexNetEncoder
 from trifeatures.trifeatures import TrifeaturesDataModule
 from trifeatures.trifeatures_model import train_ssl_trifeatures, FactorCLSSL
-
+from torchmetrics.classification import MulticlassAccuracy
 
 if __name__ == "__main__":
     # Initialize the parser
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     train_loader = data_module.train_dataloader()
     encoders = [AlexNetEncoder(512), AlexNetEncoder(512)]
     factorcl_ssl = FactorCLSSL(encoders=encoders, feat_dims=[512, 512], y_ohe_dim=3, lr=args.lr).cuda()
-    train_ssl_trifeatures(factorcl_ssl, train_loader, num_epoch=100, num_club_iter=1)
+    train_ssl_trifeatures(factorcl_ssl, train_loader, num_epoch=1, num_club_iter=1)
     factorcl_ssl.eval()
 
     tasks = ["share", "unique1", "unique2", "synergy"]
@@ -53,7 +53,8 @@ if __name__ == "__main__":
 
         # Train Logistic Classifier
         clf = LogisticRegressionCV(Cs=5, max_iter=100, n_jobs=20).fit(X_train, y_train)
-        score = accuracy_score(y_test, clf.predict(X_test))
+        C = len(set(y_test))
+        score = MulticlassAccuracy(num_classes=C, average="macro")(torch.tensor(y_test), torch.from_numpy(clf.predict(X_test)))
         print(f"biased={args.biased}, run={args.run}, task={t}, score={score}")
         results[f"acc1_{t}"] = score
     with open(os.path.join(args.root, f"factorCL_biased={args.biased}_run-{args.run}_lr-{args.lr}.pkl"), "wb") as f:
