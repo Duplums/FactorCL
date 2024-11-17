@@ -33,7 +33,7 @@ if __name__ == "__main__":
     train_loader = data_module.train_dataloader()
     encoders = [AlexNetEncoder(512), AlexNetEncoder(512)]
     factorcl_ssl = FactorCLSSL(encoders=encoders, feat_dims=[512, 512], y_ohe_dim=3, lr=args.lr).cuda()
-    train_ssl_trifeatures(factorcl_ssl, train_loader, num_epoch=1, num_club_iter=1)
+    train_ssl_trifeatures(factorcl_ssl, train_loader, num_epoch=100, num_club_iter=1)
     factorcl_ssl.eval()
 
     tasks = ["share", "unique1", "unique2", "synergy"]
